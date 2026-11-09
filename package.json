@@ -1,0 +1,10 @@
+{
+  "name": "food-delivery",
+  "private": true,
+  "scripts": {
+    "dev:backend": "npm --prefix backend run dev",
+    "dev:frontend": "npm --prefix frontend start",
+    "check": "npm --prefix backend run typecheck && npm --prefix frontend run typecheck",
+    "test": "npm --prefix backend test"
+  }
+}

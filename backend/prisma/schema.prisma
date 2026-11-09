@@ -1,0 +1,42 @@
+generator client {
+ provider = "prisma-client-js"
+}
+datasource db {
+ provider = "postgresql"
+}
+model Food {
+ id String @id @default(cuid())
+ name String
+ description String
+ image String
+ category String
+ price Int
+ vegetarian Boolean @default(false)
+ available Boolean @default(true)
+ recipeId Int? @unique
+ orderItems OrderItem[]
+}
+model Order {
+ id String @id @default(cuid())
+ userId String
+ idempotencyKey String
+ status String @default("PLACED")
+ address Json
+ subtotal Int
+ deliveryFee Int
+ total Int
+ createdAt DateTime @default(now())
+ items OrderItem[]
+ @@unique([userId, idempotencyKey])
+ @@index([userId, createdAt])
+}
+model OrderItem {
+ id String @id @default(cuid())
+ orderId String
+ order Order @relation(fields: [orderId], references: [id])
+ foodId String
+ food Food @relation(fields: [foodId], references: [id])
+ name String
+ unitPrice Int
+ quantity Int
+}
