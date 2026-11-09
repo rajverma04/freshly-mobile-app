@@ -9,6 +9,7 @@ import { ui, money, colors } from "../../shared/theme";
 import { State } from "../../shared/components/State";
 import { Button } from "../../shared/components/Button";
 import { LiveTrackingMap } from "./LiveTrackingMap";
+import { OrderTrackingModal } from "./OrderTrackingModal";
 
 const STATUS_CONFIG: Record<
   OrderStatus,
@@ -32,6 +33,7 @@ export function OrdersScreen() {
   const [actionError, setActionError] = useState("");
   const [toast, setToast] = useState("");
   const [ratedOrders, setRatedOrders] = useState<Record<string, number>>({});
+  const [trackingOrder, setTrackingOrder] = useState<Order | null>(null);
 
   async function handleAdvance(orderId: string) {
     setActingId(orderId);
@@ -316,6 +318,17 @@ export function OrdersScreen() {
 
               {/* Action Buttons */}
               <View style={{ gap: 8, marginTop: 4 }}>
+                {!isCancelled && (
+                  <Button
+                    title={
+                      isOutForDelivery
+                        ? "📍 Track Live Rider on Map ➔"
+                        : "📍 View Order Tracking & Route"
+                    }
+                    onPress={() => setTrackingOrder(order)}
+                  />
+                )}
+
                 {(canAdvance || canCancel) && (
                   <View style={[ui.row, { gap: 10 }]}>
                     {canAdvance && (
@@ -353,6 +366,13 @@ export function OrdersScreen() {
       ) : (
         <State empty="No orders yet. Your next meal is a few taps away." />
       )}
+
+      {/* Dedicated Order Tracking Modal */}
+      <OrderTrackingModal
+        order={trackingOrder}
+        onClose={() => setTrackingOrder(null)}
+        onOrderUpdated={reload}
+      />
     </ScrollView>
   );
 }
