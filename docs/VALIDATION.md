@@ -1,20 +1,19 @@
 # Validation
 
-Checked on 10 November 2026.
+Last checked 10 November 2026.
 
-- Final Expo Router iOS and Android production bundles: passed.
-- Prisma 7 client generation: passed.
-- Backend TypeScript compilation: passed.
-- Frontend TypeScript and Expo ESLint: passed.
-- Backend tests: 3 passed, covering order amount/quantity/address validation, unauthenticated GET/POST order rejection, health, unknown routes, and missing/invalid recipe configuration.
-- Expo SDK-compatible dependency alignment was performed using Expo CLI.
+- Backend TypeScript typecheck and production build: passed after role and recipe-cache changes.
+- Frontend TypeScript and Expo lint: passed after removing customer order-advance controls.
+- Earlier backend tests passed for totals, order input validation, health, unauthenticated order access, and recipe configuration. The live role guard and owner-only tracking need authenticated integration coverage.
+- Earlier Expo iOS and Android bundles succeeded before the latest Antigravity features and RBAC edits; rebundle after changes before device use.
+- Supabase URLs connected, Clerk backend secret authenticated, Spoonacular returned a recipe. Initial Supabase migration and sample seed were applied in the prior session.
 
-The HTTP tests use synthetic environment values and never contact external services. They do not verify real Clerk token acceptance, database transactions, migrations, user-to-user isolation with real accounts, or Spoonacular responses.
+## Role setup
 
-Live service and device validation requires your credentials: follow the checklist in SETUP.md. No database migration has been applied to a remote Supabase project. No physical-device or simulator UI review has been performed.
+Clerk users default to the `user` role. Assign trusted staff using Clerk Dashboard → user → public metadata, for example `{"role":"staff"}`. Assign `{"role":"admin"}` for menu creation and analytics. The Node API reads metadata from Clerk on protected requests; role changes take effect on subsequent requests. Do not let users edit their own public metadata through the app.
 
-## Dependency audit
+## Still unverified / prototype limits
 
-Backend audit: 0 known vulnerabilities at installation.
+No authenticated customer/staff/admin integration tests or device walkthrough have been run for the recent changes. Confirm regular users receive 403 on staff/admin endpoints, staff can run kitchen/stock workflows, and admins can read analytics/create menu items. Tracking is generated from fixed sample coordinates and a simulated timeline; there is no driver GPS integration. Payment UI simulates success; no provider verifies or captures payments. Promo discounts are client-only and are not included in authoritative server totals. Push notifications, payment provider integration, and server-validated promotions remain unfinished.
 
-Frontend audit after Router/lint installation: 15 findings (12 moderate, 3 high), including development tools. Runtime-only audit: 8 findings (5 moderate, 3 high). The high findings trace to Expo Router SDK 57's `query-string` / `decode-uri-component` dependency. Moderate findings include Expo fingerprint/glob/minimatch tooling. npm proposes SDK-changing fixes; these were not force-applied because Expo Go native compatibility must be preserved. The patched decoder is ESM while the currently required decoder is CommonJS, so an untested transitive override was not applied. Recheck upstream SDK 57 patches or upgrade the entire Expo SDK/client together before a public release.
+Check current dependency advisories with `npm audit` in both frontend and backend before release; Expo SDK was upgraded to 58 after the previous audit and its old counts no longer apply.

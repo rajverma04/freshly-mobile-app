@@ -2,19 +2,26 @@ import { Router } from "express";
 import { getAuth } from "@clerk/express";
 import { Prisma } from "@prisma/client";
 import { prisma } from "../../lib/prisma.js";
-import { authenticated } from "../../middleware/auth.js";
+import { authenticated, requireRole } from "../../middleware/auth.js";
 import { HttpError } from "../../middleware/errors.js";
 import {
   NEXT_STATUS_MAP,
   type OrderStatus,
   orderSchema,
   totals,
-  updateStatusSchema,
-  VALID_TRANSITIONS,
 } from "./order.schema.js";
 
 export const ordersRouter = Router();
 ordersRouter.use(authenticated);
+
+ordersRouter.get("/me", requireRole("user", "staff", "admin"), async (req, res) => {
+  const { userId } = getAuth(req);
+  const { clerkClient } = await import("@clerk/express");
+  const user = await clerkClient.users.getUser(userId!);
+  const rawRole = user.publicMetadata.role;
+  const role = rawRole === "admin" || rawRole === "staff" ? rawRole : "user";
+  res.json({ role });
+});
 
 // User: View current user's order history
 ordersRouter.get("/", async (req, res) => {
@@ -29,7 +36,7 @@ ordersRouter.get("/", async (req, res) => {
 });
 
 // Kitchen: View all incoming orders across all customers
-ordersRouter.get("/kitchen/live", async (_req, res) => {
+ordersRouter.get("/kitchen/live", requireRole("staff", "admin"), async (_req, res) => {
   res.json(
     await prisma.order.findMany({
       include: { items: true },
@@ -40,9 +47,9 @@ ordersRouter.get("/kitchen/live", async (_req, res) => {
 });
 
 // Kitchen: Advance any order's status
-ordersRouter.post("/kitchen/:id/advance", async (req, res) => {
+ordersRouter.post("/kitchen/:id/advance", requireRole("staff", "admin"), async (req, res) => {
   const order = await prisma.order.findUnique({
-    where: { id: req.params.id },
+    where: { id: String(req.params.id) },
     include: { items: true },
   });
   if (!order) throw new HttpError(404, "Order not found");
@@ -65,9 +72,9 @@ ordersRouter.post("/kitchen/:id/advance", async (req, res) => {
 });
 
 // Kitchen: Cancel an order
-ordersRouter.post("/kitchen/:id/cancel", async (req, res) => {
+ordersRouter.post("/kitchen/:id/cancel", requireRole("staff", "admin"), async (req, res) => {
   const order = await prisma.order.findUnique({
-    where: { id: req.params.id },
+    where: { id: String(req.params.id) },
     include: { items: true },
   });
   if (!order) throw new HttpError(404, "Order not found");
@@ -89,7 +96,7 @@ ordersRouter.post("/kitchen/:id/cancel", async (req, res) => {
 });
 
 // Admin: Revenue and Sales Analytics
-ordersRouter.get("/admin/analytics", async (_req, res) => {
+ordersRouter.get("/admin/analytics", requireRole("admin"), async (_req, res) => {
   const allOrders = await prisma.order.findMany({
     include: { items: true },
     orderBy: { createdAt: "desc" },
@@ -196,7 +203,7 @@ ordersRouter.get("/admin/analytics", async (_req, res) => {
 // User: Specific order by ID
 ordersRouter.get("/:id", async (req, res) => {
   const order = await prisma.order.findFirst({
-    where: { id: req.params.id, userId: getAuth(req).userId! },
+    where: { id: String(req.params.id), userId: getAuth(req).userId! },
     include: { items: true },
   });
   if (!order) throw new HttpError(404, "Order not found");
@@ -205,8 +212,8 @@ ordersRouter.get("/:id", async (req, res) => {
 
 // Live Location Tracking for order
 ordersRouter.get("/:id/track", async (req, res) => {
-  const order = await prisma.order.findUnique({
-    where: { id: req.params.id },
+  const order = await prisma.order.findFirst({
+    where: { id: String(req.params.id), userId: getAuth(req).userId! },
     include: { items: true },
   });
   if (!order) throw new HttpError(404, "Order not found");
@@ -316,37 +323,11 @@ ordersRouter.get("/:id/track", async (req, res) => {
   });
 });
 
-// User: Advance own order for demo
-ordersRouter.post("/:id/advance", async (req, res) => {
-  const userId = getAuth(req).userId!;
-  const order = await prisma.order.findFirst({
-    where: { id: req.params.id, userId },
-    include: { items: true },
-  });
-  if (!order) throw new HttpError(404, "Order not found");
-
-  const current = order.status as OrderStatus;
-  const nextStatus = NEXT_STATUS_MAP[current];
-  if (!nextStatus) {
-    throw new HttpError(
-      400,
-      `Order is already ${current} and cannot be advanced further.`,
-    );
-  }
-
-  const updated = await prisma.order.update({
-    where: { id: order.id },
-    data: { status: nextStatus },
-    include: { items: true },
-  });
-  res.json(updated);
-});
-
 // User: Cancel own placed order
 ordersRouter.post("/:id/cancel", async (req, res) => {
   const userId = getAuth(req).userId!;
   const order = await prisma.order.findFirst({
-    where: { id: req.params.id, userId },
+    where: { id: String(req.params.id), userId },
     include: { items: true },
   });
   if (!order) throw new HttpError(404, "Order not found");
@@ -362,33 +343,6 @@ ordersRouter.post("/:id/cancel", async (req, res) => {
   const updated = await prisma.order.update({
     where: { id: order.id },
     data: { status: "CANCELLED" },
-    include: { items: true },
-  });
-  res.json(updated);
-});
-
-// User or Admin: Explicit status patch
-ordersRouter.patch("/:id/status", async (req, res) => {
-  const { status } = updateStatusSchema.parse(req.body);
-  const userId = getAuth(req).userId!;
-  const order = await prisma.order.findFirst({
-    where: { id: req.params.id, userId },
-    include: { items: true },
-  });
-  if (!order) throw new HttpError(404, "Order not found");
-
-  const current = order.status as OrderStatus;
-  const allowed = VALID_TRANSITIONS[current] || [];
-  if (!allowed.includes(status)) {
-    throw new HttpError(
-      400,
-      `Cannot transition order status from ${current} to ${status}.`,
-    );
-  }
-
-  const updated = await prisma.order.update({
-    where: { id: order.id },
-    data: { status },
     include: { items: true },
   });
   res.json(updated);

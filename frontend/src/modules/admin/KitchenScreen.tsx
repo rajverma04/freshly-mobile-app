@@ -28,9 +28,11 @@ const STATUS_ACTIONS: Partial<
 export function KitchenScreen({
   visible,
   onClose,
+  isAdmin,
 }: {
   visible: boolean;
   onClose: () => void;
+  isAdmin: boolean;
 }) {
   const api = useApi();
   const [tab, setTab] = useState<"orders" | "analytics" | "inventory" | "add">("orders");
@@ -82,7 +84,7 @@ export function KitchenScreen({
         method: "POST",
       });
       reloadOrders();
-      reloadAnalytics();
+      if (isAdmin) reloadAnalytics();
     } catch (e) {
       setErrorMsg(e instanceof Error ? e.message : "Failed to update order");
     } finally {
@@ -98,7 +100,7 @@ export function KitchenScreen({
         method: "POST",
       });
       reloadOrders();
-      reloadAnalytics();
+      if (isAdmin) reloadAnalytics();
     } catch (e) {
       setErrorMsg(e instanceof Error ? e.message : "Failed to cancel order");
     } finally {
@@ -190,7 +192,7 @@ export function KitchenScreen({
               KITCHEN & STAFF
             </Text>
             <Text style={{ fontSize: 22, fontWeight: "800", color: colors.ink }}>
-              Admin Dashboard
+              {isAdmin ? "Admin Dashboard" : "Staff Dashboard"}
             </Text>
           </View>
           <Button secondary title="Close ✕" onPress={onClose} />
@@ -208,7 +210,8 @@ export function KitchenScreen({
           }}
           contentContainerStyle={{
             paddingHorizontal: 16,
-            paddingVertical: 10,
+            paddingVertical: 8,
+            alignItems: "center",
             gap: 8,
           }}
         >
@@ -218,9 +221,7 @@ export function KitchenScreen({
                 "orders",
                 `Live Orders (${orders?.filter((o) => !["DELIVERED", "CANCELLED"].includes(o.status)).length || 0})`,
               ],
-              ["analytics", "Revenue & Sales 📊"],
               ["inventory", `Menu Stock (${foods?.length || 0})`],
-              ["add", "＋ Add Dish"],
             ] as const
           ).map(([t, label]) => (
             <Pressable
@@ -379,10 +380,10 @@ export function KitchenScreen({
                     >
                       {order.items.map((i) => (
                         <View key={i.id} style={ui.row}>
-                          <Text style={{ fontWeight: "700", color: colors.ink }}>
+                          <Text style={{ flex: 1, flexShrink: 1, fontWeight: "700", color: colors.ink }}>
                             {i.quantity} × {i.name}
                           </Text>
-                          <Text style={ui.muted}>
+                          <Text style={[ui.muted, { flexShrink: 0 }]}>
                             {money(i.unitPrice * i.quantity)}
                           </Text>
                         </View>
@@ -416,7 +417,7 @@ export function KitchenScreen({
         )}
 
         {/* Tab 2: Revenue & Sales Dashboard */}
-        {tab === "analytics" && (
+        {isAdmin && tab === "analytics" && (
           <ScrollView
             contentContainerStyle={[ui.content, { paddingBottom: 40 }]}
             refreshControl={
@@ -878,7 +879,7 @@ export function KitchenScreen({
         )}
 
         {/* Tab 3: Add Dish Form */}
-        {tab === "add" && (
+        {isAdmin && tab === "add" && (
           <ScrollView
             keyboardShouldPersistTaps="handled"
             contentContainerStyle={ui.content}

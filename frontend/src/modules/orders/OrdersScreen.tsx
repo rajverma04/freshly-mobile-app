@@ -35,19 +35,6 @@ export function OrdersScreen() {
   const [ratedOrders, setRatedOrders] = useState<Record<string, number>>({});
   const [trackingOrder, setTrackingOrder] = useState<Order | null>(null);
 
-  async function handleAdvance(orderId: string) {
-    setActingId(orderId);
-    setActionError("");
-    try {
-      await api<Order>(`/orders/${orderId}/advance`, { method: "POST" });
-      reload();
-    } catch (e) {
-      setActionError(e instanceof Error ? e.message : "Could not advance order.");
-    } finally {
-      setActingId(null);
-    }
-  }
-
   async function handleCancel(orderId: string) {
     setActingId(orderId);
     setActionError("");
@@ -123,7 +110,6 @@ export function OrdersScreen() {
           const isDelivered = order.status === "DELIVERED";
           const isOutForDelivery = order.status === "OUT_FOR_DELIVERY";
           const canCancel = ["PLACED", "CONFIRMED"].includes(order.status);
-          const canAdvance = !isCancelled && !isDelivered;
           const isBusy = actingId === order.id;
           const isOnlinePaid = order.address?.paymentMethod === "ONLINE";
 
@@ -329,28 +315,13 @@ export function OrdersScreen() {
                   />
                 )}
 
-                {(canAdvance || canCancel) && (
-                  <View style={[ui.row, { gap: 10 }]}>
-                    {canAdvance && (
-                      <View style={{ flex: 1 }}>
-                        <Button
-                          title={isBusy ? "Updating…" : "Advance step ➔"}
-                          disabled={isBusy}
-                          onPress={() => void handleAdvance(order.id)}
-                        />
-                      </View>
-                    )}
-                    {canCancel && (
-                      <View style={{ flex: canAdvance ? 1 : 2 }}>
-                        <Button
-                          secondary
-                          title={isBusy ? "Cancelling…" : "Cancel order"}
-                          disabled={isBusy}
-                          onPress={() => void handleCancel(order.id)}
-                        />
-                      </View>
-                    )}
-                  </View>
+                {canCancel && (
+                  <Button
+                    secondary
+                    title={isBusy ? "Cancelling…" : "Cancel order"}
+                    disabled={isBusy}
+                    onPress={() => void handleCancel(order.id)}
+                  />
                 )}
 
                 {/* Re-order Button */}

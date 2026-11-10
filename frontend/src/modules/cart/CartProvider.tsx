@@ -19,12 +19,19 @@ type Cart = {
   subtotal: number;
   count: number;
   isHydrated: boolean;
+  promoCode: string | null;
+  discount: number;
+  deliveryFee: number;
+  total: number;
+  applyPromo: (code: string) => { success: boolean; message: string };
+  removePromo: () => void;
 };
 
 const Context = createContext<Cart | null>(null);
 
 export function CartProvider({ children }: { children: ReactNode }) {
   const [items, setItems] = useState<CartItem[]>([]);
+  const [promoCode, setPromoCode] = useState<string | null>(null);
   const [isHydrated, setIsHydrated] = useState(false);
   const hydratedRef = useRef(false);
 
@@ -84,8 +91,61 @@ export function CartProvider({ children }: { children: ReactNode }) {
 
   const clear = () => {
     setItems([]);
+    setPromoCode(null);
     void removeStorageItem(CART_STORAGE_KEY);
   };
+
+  const subtotal = items.reduce((s, i) => s + i.food.price * i.quantity, 0);
+
+  let discount = 0;
+  if (promoCode === "FRESH50") {
+    discount = subtotal >= 20000 ? Math.min(subtotal, 5000) : 0;
+  } else if (promoCode === "WELCOME20") {
+    discount = Math.min(10000, Math.round(subtotal * 0.2));
+  }
+
+  const standardDeliveryFee = subtotal >= 50000 ? 0 : 3900;
+  const deliveryFee = promoCode === "FREEDEL" ? 0 : standardDeliveryFee;
+  const total = Math.max(0, subtotal - discount + deliveryFee);
+
+  function applyPromo(code: string): { success: boolean; message: string } {
+    const clean = code.trim().toUpperCase();
+    if (!clean) {
+      return { success: false, message: "Please enter a coupon code." };
+    }
+    if (clean === "FRESH50") {
+      if (subtotal < 20000) {
+        return {
+          success: false,
+          message: "FRESH50 requires a minimum order of ₹200.",
+        };
+      }
+      setPromoCode("FRESH50");
+      return { success: true, message: "FRESH50 applied! Flat ₹50 saved." };
+    }
+    if (clean === "WELCOME20") {
+      setPromoCode("WELCOME20");
+      return {
+        success: true,
+        message: "WELCOME20 applied! 20% discount added.",
+      };
+    }
+    if (clean === "FREEDEL") {
+      setPromoCode("FREEDEL");
+      return {
+        success: true,
+        message: "FREEDEL applied! Free delivery unlocked.",
+      };
+    }
+    return {
+      success: false,
+      message: "Invalid code. Try FRESH50, WELCOME20, or FREEDEL.",
+    };
+  }
+
+  function removePromo() {
+    setPromoCode(null);
+  }
 
   return (
     <Context.Provider
@@ -94,9 +154,15 @@ export function CartProvider({ children }: { children: ReactNode }) {
         add,
         change,
         clear,
-        subtotal: items.reduce((s, i) => s + i.food.price * i.quantity, 0),
+        subtotal,
         count: items.reduce((s, i) => s + i.quantity, 0),
         isHydrated,
+        promoCode,
+        discount,
+        deliveryFee,
+        total,
+        applyPromo,
+        removePromo,
       }}
     >
       {children}

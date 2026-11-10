@@ -2,6 +2,7 @@ import { Router } from "express";
 import { z } from "zod";
 import { prisma } from "../../lib/prisma.js";
 import { HttpError } from "../../middleware/errors.js";
+import { requireRole } from "../../middleware/auth.js";
 
 export const catalogRouter = Router();
 
@@ -27,7 +28,7 @@ catalogRouter.get("/", async (req, res) => {
 });
 
 // Admin / Kitchen: List all items including out of stock
-catalogRouter.get("/admin", async (_req, res) => {
+catalogRouter.get("/admin", requireRole("staff", "admin"), async (_req, res) => {
   res.json(
     await prisma.food.findMany({
       orderBy: { name: "asc" },
@@ -37,9 +38,9 @@ catalogRouter.get("/admin", async (_req, res) => {
 });
 
 // Admin / Kitchen: Toggle dish availability (in stock / out of stock)
-catalogRouter.patch("/:id/toggle", async (req, res) => {
+catalogRouter.patch("/:id/toggle", requireRole("staff", "admin"), async (req, res) => {
   const food = await prisma.food.findUnique({
-    where: { id: req.params.id },
+    where: { id: String(req.params.id) },
   });
   if (!food) throw new HttpError(404, "Food item not found");
 
@@ -51,7 +52,7 @@ catalogRouter.patch("/:id/toggle", async (req, res) => {
 });
 
 // Admin / Kitchen: Create new dish
-catalogRouter.post("/", async (req, res) => {
+catalogRouter.post("/", requireRole("admin"), async (req, res) => {
   const schema = z.object({
     name: z.string().trim().min(2).max(100),
     description: z.string().trim().min(5).max(500),

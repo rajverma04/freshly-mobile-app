@@ -1,16 +1,29 @@
 # API
 
-Base URL: `http://localhost:4000/api`. JSON responses. Protected routes require `Authorization: Bearer <Clerk session token>`.
+Base URL: `http://localhost:4000/api`. JSON responses. Protected routes require `Authorization: Bearer <Clerk session token>`. Clerk `publicMetadata.role` controls staff access: missing or unrecognized values resolve to `user`; `staff` can manage kitchen orders and stock, and `admin` can also create menu items and view analytics. Never accept roles from client input.
 
-| Method | Path                       | Authentication | Description                                |
-| ------ | -------------------------- | -------------- | ------------------------------------------ |
-| GET    | `/health` (outside `/api`) | Public         | Process liveness, not database readiness   |
-| GET    | `/foods?query=&category=`  | Public         | Available foods, up to 100                 |
-| GET    | `/recipes?query=&offset=0` | Public         | 12 Spoonacular recipes; offset up to 900   |
-| GET    | `/orders`                  | Required       | Latest 50 orders belonging to caller       |
-| POST   | `/orders`                  | Required       | Validate and create cash-on-delivery order |
+| Method | Path | Access | Description |
+| --- | --- | --- | --- |
+| GET | `/health` (outside `/api`) | Public | Process liveness only |
+| GET | `/foods?query=&category=` | Public | Available menu, up to 100 items |
+| GET | `/recipes?query=&offset=0` | Public | Spoonacular search; Supabase-cached for 24 hours |
+| GET | `/orders/me` | Signed in | Current caller's effective role |
+| GET | `/orders` | Signed in | Caller’s latest 50 orders |
+| POST | `/orders` | Signed in | Create order using server menu prices |
+| GET | `/orders/:id` | Owner | Read one own order |
+| GET | `/orders/:id/track` | Owner | Simulated tracking data; not GPS |
+| POST | `/orders/:id/cancel` | Owner | Cancel own placed/confirmed order |
+| GET | `/foods/admin` | Staff/admin | List all menu items |
+| PATCH | `/foods/:id/toggle` | Staff/admin | Toggle item availability |
+| GET | `/orders/kitchen/live` | Staff/admin | Recent customer orders |
+| POST | `/orders/kitchen/:id/advance` | Staff/admin | Advance order status |
+| POST | `/orders/kitchen/:id/cancel` | Staff/admin | Cancel a kitchen order |
+| POST | `/foods` | Admin | Create a menu item |
+| GET | `/orders/admin/analytics` | Admin | Sales and order analytics |
 
-Example order request:
+Customer clients cannot advance order status. For development, grant a role by setting a trusted user’s Clerk `publicMetadata.role` to `staff` or `admin` in the Clerk dashboard. Existing accounts with no metadata remain ordinary customers.
+
+Order request example:
 
 ```json
 {
@@ -26,4 +39,6 @@ Example order request:
 }
 ```
 
-Prices are integer paise. Never submit client-calculated totals as authoritative values. Order creation returns 201, replay returns 200. Missing authentication returns 401; invalid input 400; unavailable foods 409; unconfigured or exhausted recipe service 503; upstream recipe errors 502. Error objects have `message`; validation errors also have `issues`. Rate limits may return 429. Do not blindly generate a new idempotency key after a timeout; retry the same payload/key.
+Prices are integer paise. Do not submit client totals as authoritative values. Creation returns 201 and an idempotent replay returns 200. Common errors: 401 unauthenticated, 403 insufficient role, 400 invalid request, 404 missing order/item, 409 unavailable menu item, 429 rate limited. Retry a timed-out submission with the same payload and idempotency key.
+
+Promotions and online payment UI are prototypes. The server does not validate discounts or verify payment. Tracking coordinates and rider details are simulated. Do not use these prototype features for real orders.

@@ -2,7 +2,7 @@
 
 ## Prerequisites
 
-Use Node.js 22.12+ (Node 22 LTS recommended), npm, Expo Go, a Clerk application, a Supabase project and optionally a Spoonacular key. Frontend uses SDK 57, selected for the physical-device Expo Go transition guidance. Install a matching Expo Go version if your client differs.
+Use Node.js 22.12+ (Node 22 LTS recommended), npm, Expo Go, a Clerk application, a Supabase project and optionally a Spoonacular key. Frontend currently uses Expo SDK 58. Install/update Expo Go to a compatible client version before scanning on a physical device.
 
 ## 1. Install
 
@@ -20,18 +20,18 @@ Copy `backend/.env.example` to `backend/.env` and replace placeholders.
 - Supabase Connect panel: copy a transaction-pooler URL into `DATABASE_URL` and a direct or session-pooler URL into `DIRECT_URL`. Session pooling on port 5432 can be used when direct IPv6 is inaccessible. URL-encode special characters in the database password. Preserve provider-required SSL settings.
 - Prisma 7 uses `prisma.config.ts` for CLI connections and the Postgres driver adapter for runtime connections. No Supabase JS client or Supabase Auth is needed.
 - Copy `CLERK_PUBLISHABLE_KEY` and `CLERK_SECRET_KEY` from the same Clerk application used by the frontend.
-- Optional `SPOONACULAR_API_KEY` enables recipe discovery. Menu and ordering do not depend on it.
+- Optional `SPOONACULAR_API_KEY` enables recipe discovery. `SPOONACULAR_DAILY_REQUEST_LIMIT` defaults to 45 and cannot be configured above 49, preserving headroom below a 50-call daily test quota. Cached search hits do not consume the upstream request budget. Menu and ordering do not depend on Spoonacular.
 - `CORS_ORIGINS` is comma-separated browser origins. Native Expo requests do not depend on browser CORS. Keep it restricted for deployed web clients.
 
 Never put database credentials, Clerk secret keys, or Spoonacular keys in `EXPO_PUBLIC_*` variables.
 
 ## 3. Clerk
 
-Enable the Native API in the Clerk dashboard. Enable email/password sign-in and sign-up with email-code verification. For this starter, do not require username, phone, additional sign-up fields, MFA, or session tasks. The custom React Native authentication form works in Expo Go; it does not use Clerk's native UI components. Password reset and additional verification flows need to be added before a broader launch.
+Enable the Native API in the Clerk dashboard. Assign staff access by setting a user’s Clerk `publicMetadata.role` to `staff`; set `admin` for full administration. Missing or unrecognized roles are treated as `user`. Set roles only from the trusted Clerk dashboard or backend; never accept a role supplied by the mobile client. Staff can manage stock and order stages. Admins can also create menu items and view analytics. Enable email/password sign-in and sign-up with email-code verification. For this starter, do not require username, phone, additional sign-up fields, MFA, or session tasks. The custom React Native authentication form works in Expo Go; it does not use Clerk's native UI components. Password reset and additional verification flows need to be added before a broader launch.
 
 ## 4. Database
 
-Use a dedicated development Supabase project. Review the initial SQL before applying it. The migration enables RLS on application tables without public policies; the server database role must own these tables or have BYPASSRLS. Never expose its connection string to the app.
+Use a dedicated development Supabase project. The initial migration has been applied to the configured project. For a fresh project, review the SQL before applying it. The migration enables RLS on application tables without public policies; the server database role must own these tables or have BYPASSRLS. Never expose its connection string to the app.
 
 ```sh
 cd backend
@@ -40,7 +40,7 @@ npm run db:deploy
 npm run db:seed
 ```
 
-For future schema changes use `npm run db:migrate -- --name descriptive_name` against development only. `db:deploy` applies checked-in migrations. Seed upserts six sample dishes and does not overwrite existing dishes.
+For future schema changes use `npm run db:migrate -- --name descriptive_name` against development only. `db:deploy` applies checked-in migrations. Seed upserts six sample dishes and does not overwrite existing dishes. The configured project has already been migrated and seeded; rerun the seed only if you want to ensure the sample dishes exist.
 
 ## 5. Frontend
 

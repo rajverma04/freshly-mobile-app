@@ -40,3 +40,21 @@ model OrderItem {
  unitPrice Int
  quantity Int
 }
+
+model RecipeSearchCache {
+ id String @id @default(cuid())
+ cacheKey String @unique
+ query String
+ offset Int
+ totalResults Int
+ results Json
+ fetchedAt DateTime @default(now())
+ expiresAt DateTime
+ @@index([expiresAt])
+}
+
+model SpoonacularDailyUsage {
+ day String @id
+ requestCount Int @default(0)
+ updatedAt DateTime @updatedAt
+}

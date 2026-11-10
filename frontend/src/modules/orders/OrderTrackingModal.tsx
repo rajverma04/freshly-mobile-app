@@ -87,23 +87,6 @@ export function OrderTrackingModal({
   const currentStatus = order.status;
   const cfg = STATUS_DETAILS[currentStatus] || STATUS_DETAILS.PLACED;
   const isCancelled = currentStatus === "CANCELLED";
-  const isDelivered = currentStatus === "DELIVERED";
-  const canAdvance = !isCancelled && !isDelivered;
-
-  async function handleAdvance() {
-    if (!order) return;
-    setBusy(true);
-    setErrorMsg("");
-    try {
-      await api<Order>(`/orders/${order.id}/advance`, { method: "POST" });
-      onOrderUpdated?.();
-      onClose();
-    } catch (e) {
-      setErrorMsg(e instanceof Error ? e.message : "Could not advance order.");
-    } finally {
-      setBusy(false);
-    }
-  }
 
   async function handleCancel() {
     if (!order) return;
@@ -358,14 +341,6 @@ export function OrderTrackingModal({
 
           {/* Interactive Action & Demo Buttons */}
           <View style={{ gap: 10, marginTop: 4 }}>
-            {canAdvance && (
-              <Button
-                title={busy ? "Updating…" : "Simulate Next Stage (Demo) ➔"}
-                disabled={busy}
-                onPress={() => void handleAdvance()}
-              />
-            )}
-
             {["PLACED", "CONFIRMED"].includes(currentStatus) && (
               <Button
                 secondary

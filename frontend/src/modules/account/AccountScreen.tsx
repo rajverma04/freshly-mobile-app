@@ -6,12 +6,14 @@ import { Button } from "../../shared/components/Button";
 import { getStorageItem, removeStorageItem, setStorageItem } from "../../shared/storage";
 import type { SavedAddress } from "../../shared/types";
 import { KitchenScreen } from "../admin/KitchenScreen";
+import { useResource } from "../../shared/useResource";
 
 const MULTI_ADDRESSES_STORAGE_KEY = "freshly_saved_addresses_multi";
 const LEGACY_ADDRESS_STORAGE_KEY = "freshly_saved_address";
 
 export function AccountScreen() {
   const { user } = useUser();
+  const { data: access } = useResource<{ role: "user" | "staff" | "admin" }>("/orders/me");
   const { signOut } = useClerk();
   const [error, setError] = useState("");
   const [addresses, setAddresses] = useState<SavedAddress[]>([]);
@@ -129,7 +131,7 @@ export function AccountScreen() {
         </View>
 
         {/* Kitchen & Staff Access Banner */}
-        <View
+        {access?.role === "staff" || access?.role === "admin" ? <View
           style={[
             ui.card,
             {
@@ -161,7 +163,7 @@ export function AccountScreen() {
             title="Open Kitchen Management 👨‍🍳"
             onPress={() => setShowKitchen(true)}
           />
-        </View>
+        </View> : null}
 
         {/* Saved Addresses Section */}
         <View style={ui.row}>
@@ -279,6 +281,7 @@ export function AccountScreen() {
       <KitchenScreen
         visible={showKitchen}
         onClose={() => setShowKitchen(false)}
+        isAdmin={access?.role === "admin"}
       />
     </>
   );

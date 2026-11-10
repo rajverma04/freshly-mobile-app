@@ -9,6 +9,7 @@ export const env = z
     CLERK_PUBLISHABLE_KEY: z.string().startsWith("pk_"),
     CLERK_SECRET_KEY: z.string().startsWith("sk_"),
     SPOONACULAR_API_KEY: z.string().optional(),
+    SPOONACULAR_DAILY_REQUEST_LIMIT: z.coerce.number().int().min(1).max(49).default(45),
     CORS_ORIGINS: z.string().default("http://localhost:8081"),
   })
   .parse(process.env);
